@@ -1,7 +1,6 @@
 use 5.020;
 use warnings;
 
-use Net::HTTP;
 use XML::Reader::RS qw(slurp_xml);
 
 my $defname = 'A025_Def.xml';
@@ -12,38 +11,9 @@ my $aref = slurp_xml($defname,
 );
 
 for my $feed (@{$aref->[1]}) {
-    my ($host, $get) = $feed->[2] =~ m{\A http:// ([^/]+) (/ .*) \z}xms ? ($1, $2) :
-      die "Error-0020: Can't parse /http://www.../ from '$feed->[2]'";
-
-    say '===============================';
-    say 'src  = ', $feed->[2];
-    say '';
-
-    my $http = Net::HTTP->new(Host => $host)
-      or die "Error-0030: Can't Net::HTTP->new(Host => '$host') because $@";
-
-    $http->write_request(GET => $get, 'User-Agent' => 'Mozilla/5.0');
-
-    my ($code, $msg, %h) = $http->read_response_headers;
-
-    my $xml = '';
-    my $ctr = 0;
-
-    while (1) {
-       my $rc = $http->read_entity_body(my $buf, 4096)
-         // die "Error-0035: read failed because $!";
-
-       last unless $rc;
-
-       $ctr++;
-       $xml .= $buf;
-    }
-
-    say 'len  = ', length($xml), ' bytes';
-
     my %IDRef;
 
-    my $rdr = XML::Reader->new(\$xml, { filter => 2, strip => 1 });
+    my $rdr = XML::Reader->new($feed->[2], { filter => 2, strip => 1 });
 
     while ($rdr->iterate) {
         if ($rdr->type eq 'T' and $rdr->level == 1) {
@@ -70,7 +40,7 @@ for my $feed (@{$aref->[1]}) {
         die "Error-0099: Invalid tag = '$tag'";
     }
 
-    my $xref = slurp_xml(\$xml,
+    my $xref = slurp_xml($feed->[2],
       { root => '/rss/channel', branch => [
         '/title',
         '/description',
