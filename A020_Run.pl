@@ -11,35 +11,20 @@ my $aref = slurp_xml($defname,
   { root => '/podcast/flist/feed', branch => [ '/@id', '/@name', '/@src' ] },
 );
 
-#~ say 'aref = ', Dumper($aref);
-
 for my $feed (@{$aref->[1]}) {
     my ($host, $get) = $feed->[2] =~ m{\A http:// ([^/]+) (/ .*) \z}xms ? ($1, $2) :
       die "Error-0020: Can't parse /http://www.../ from '$feed->[2]'";
 
     say '===============================';
-    #~ say 'id   = ', $feed->[0];
-    #~ say 'name = ', $feed->[1];
     say 'src  = ', $feed->[2];
-    #~ say 'host = ', $host;
-    #~ say 'get  = ', $get;
     say '';
 
-    #~ say '** Net::HTTP->new()...';
     my $http = Net::HTTP->new(Host => $host)
       or die "Error-0030: Can't Net::HTTP->new(Host => '$host') because $@";
 
-    #~ say '** Net::HTTP->write_request()...';
     $http->write_request(GET => $get, 'User-Agent' => 'Mozilla/5.0');
 
-    #~ say '** Net::HTTP->read_response_headers()...';
     my ($code, $msg, %h) = $http->read_response_headers;
-
-    use Data::Dumper;
-    #~ say 'code = ', $code;
-    #~ say 'msg  = ', $msg;
-    #~ say 'h    = ', Dumper(\%h);
-    #~ say '';
 
     my $xml = '';
     my $ctr = 0;
@@ -52,23 +37,15 @@ for my $feed (@{$aref->[1]}) {
 
        $ctr++;
        $xml .= $buf;
-
-       #~ say 'buf  = ', (substr($buf, 0, 20) =~ s{\s+}' 'xmsgr), '...' if $ctr < 5;
     }
 
-    #~ say '';
-    #~ say substr($xml, 0, 1024);
     say 'len  = ', length($xml), ' bytes';
-    #~ say '';
 
     my %IDRef;
 
     my $rdr = XML::Reader->new(\$xml, { filter => 2, strip => 1 });
 
     while ($rdr->iterate) {
-        #~ printf "prf=%-1s, pat=%-37s, val=%-6s, tag=%-11s, t=%-1s, lvl=%2d\n",
-        #~   $rdr->prefix, $rdr->path, $rdr->value, $rdr->tag, $rdr->type, $rdr->level;
-
         if ($rdr->type eq 'T' and $rdr->level == 1) {
             $IDRef{'!tag'} = $rdr->tag;
         }
