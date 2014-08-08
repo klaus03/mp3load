@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="iso-8859-1"?>
+<!-- renommer ce fichier en "A025_Def.xml" pour activer -->
+<podcast>
+    <mp3dir path="C:\Data\MP3Dir" />
+    <flist>
+        <feed id="t01" name="Test-01" src="http://www.theskepticsguide.org/feed/sgu" />
+        <feed id="t02" name="Test-02" src="http://feeds.twit.tv/sn.xml" />
+        <feed id="t03" name="Test-03" src="http://radio.seti.org/index.xml" />
+        <feed id="t04" name="Test-04" src="http://www.cbc.ca/quirks/index.xml" />
+    </flist>
+</podcast>
