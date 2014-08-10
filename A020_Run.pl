@@ -1,6 +1,7 @@
 use 5.020;
 use warnings;
 
+use Encode qw(encode);
 use XML::Reader::RS qw(slurp_xml);
 
 my $defname = 'A025_Def.xml';
@@ -18,12 +19,14 @@ for my $feed (@{$aref->[1]}) {
     while ($rdr->iterate) {
         if ($rdr->type eq 'T' and $rdr->level == 1) {
             $IDRef{'!tag'} = $rdr->tag;
+            last;
         }
         elsif ($rdr->type eq '@' and $rdr->level == 2) {
             $IDRef{$rdr->tag} = $rdr->value;
         }
-
-        last if $rdr->level == 1;
+        else {
+            last;
+        }
     }
 
     for (sort keys %IDRef) {
@@ -40,7 +43,7 @@ for my $feed (@{$aref->[1]}) {
         die "Error-0099: Invalid tag = '$tag'";
     }
 
-    my $xref = slurp_xml($feed->[2],
+    my @schema = (
       { root => '/rss/channel', branch => [
         '/title',
         '/description',
@@ -57,19 +60,20 @@ for my $feed (@{$aref->[1]}) {
       ] },
     );
 
-    my $i = 0;
+    my $xref = slurp_xml($feed->[2], @schema);
 
-    printf "c-ti = %-120.120s\n", ($xref->[0][0][0]  // '') =~ s{\s+}' 'xmsgr;
-    printf "c-ds = %-120.120s\n", ($xref->[0][0][1]  // '') =~ s{\s+}' 'xmsgr;
-    printf "c-lk = %-120.120s\n", ($xref->[0][0][2]  // '') =~ s{\s+}' 'xmsgr;
-    say '';
+    for my $c (0..$#schema) {
+        for my $d (0..$#{$xref->[$c]}) {
+            last if $d >= 3; # <-- this 'last' is in place to print only 3 occurrences...
 
-    printf "i-ti = %-120.120s\n", ($xref->[1][$i][0] // '') =~ s{\s+}' 'xmsgr;
-    printf "i-ds = %-120.120s\n", ($xref->[1][$i][1] // '') =~ s{\s+}' 'xmsgr;
-    printf "i-ur = %-120.120s\n", ($xref->[1][$i][2] // '') =~ s{\s+}' 'xmsgr;
-    printf "i-ln = %-120.120s\n", ($xref->[1][$i][3] // '') =~ s{\s+}' 'xmsgr;
-    printf "i-ty = %-120.120s\n", ($xref->[1][$i][4] // '') =~ s{\s+}' 'xmsgr;
-    printf "i-da = %-120.120s\n", ($xref->[1][$i][5] // '') =~ s{\s+}' 'xmsgr;
-    printf "i-gu = %-120.120s\n", ($xref->[1][$i][6] // '') =~ s{\s+}' 'xmsgr;
-    say '';
+            for my $e (0..$#{$schema[$c]{'branch'}}) {
+                my $text = encode('iso-8859-1', $xref->[$c][$d][$e]);
+
+                printf "%-25.25s -> %1d. %-20.20s = %-60.60s\n",
+                  $feed->[2], $c + 1, $schema[$c]{'branch'}[$e], $text;
+            }
+
+            say '';
+        }
+    }
 }
