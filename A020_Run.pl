@@ -4,6 +4,8 @@ use warnings;
 use Encode qw(encode);
 use XML::Reader::RS qw(slurp_xml);
 use File::Slurp;
+use LWP::UserAgent;
+use Net::HTTP;
 
 my $defname = 'A025_Def.xml';
 
@@ -141,8 +143,15 @@ for (@{$aref->[1]}) {
     for (@HList) {
         my $leaf = $_->[1] =~ m{[\\/] ([^\\/]+) \z}xms ? $1 : '?';
 
-        printf "%-11.11s-> %-15.15s [%-25.25s] = %-20.20s => %-60.60s\n",
-          $id, $_->[0], $leaf, $_->[2], $_->[3];
+        my $size = do {
+            my $ua   = LWP::UserAgent->new;
+            my $resp = $ua->request(HTTP::Request->new(HEAD => $_->[1]));
+            my $len  = $resp->header('Content-Length') // 0;
+            $len;
+        };
+
+        printf "%-11.11s-> %-15.15s [%-25.25s] %8s Kb = %-20.20s => %-30.30s\n",
+          $id, $_->[0], $leaf, commify(sprintf('%.0f', $size / 1024)), $_->[2], $_->[3];
     }
 
     say '';
@@ -161,4 +170,10 @@ if (%Amp) {
     }
 
     say '';
+}
+
+sub commify {
+    local $_ = shift;
+    1 while s/^([-+]?\d+)(\d{3})/$1_$2/;
+    return $_;
 }
