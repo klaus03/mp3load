@@ -7,16 +7,17 @@ use File::Slurp;
 use LWP::UserAgent;
 use Net::HTTP;
 use Term::Sk;
+use Time::HiRes qw(time);
 
 my $Env_Show = $ENV{'D_SHOW'} // '';
 my $Env_Load = $ENV{'D_LOAD'} // '';
 
 unless ($Env_Show eq 'SHORT' or $Env_Show eq 'NORMAL' or $Env_Show eq 'LONG') {
-    die "Error-0002: Invalid D_SHOW ('$Env_Show'), expected ('SHORT', 'NORMAL' or 'LONG')";
+    die "Error-0010: Invalid D_SHOW ('$Env_Show'), expected ('SHORT', 'NORMAL' or 'LONG')";
 }
 
 unless ($Env_Load eq 'MIN' or $Env_Load eq 'SIZE' or $Env_Load eq 'MAX') {
-    die "Error-0004: Invalid D_LOAD ('$Env_Load'), expected ('MIN', 'SIZE' or 'MAX')";
+    die "Error-0020: Invalid D_LOAD ('$Env_Load'), expected ('MIN', 'SIZE' or 'MAX')";
 }
 
 say '**********************************************';
@@ -34,9 +35,9 @@ my $aref = slurp_xml($defname,
 my %Amp;
 my @GList;
 
-my $sk1 = Term::Sk->new('Loading %2d %25k', { token => '' });
+my $sk1 = Term::Sk->new('Loading %2d %25k', { freq => 'd', token => '' });
 
-my $path = $aref->[0][0][0] // die "Error-0010: Can't find path '/podcast/mp3dir/\@path' in '$defname'";
+my $path = $aref->[0][0][0] // die "Error-0030: Can't find path '/podcast/mp3dir/\@path' in '$defname'";
 
 my $num;
 my $max = scalar(@{$aref->[1]});
@@ -47,12 +48,15 @@ for (@{$aref->[1]}) { $num++;
     my $name  = $_->[2];
     my $url   = $_->[3];
 
+    $url =~ s{\?.* \z}''xms;
+    $url =~ s{&.* \z}''xms;
+
     $sk1->token(sprintf('%-11s %3d (of %3d)', $id, $num, $max));
 
     my $full = $path.'\\P_'.$id;
 
     unless (-d $full) {
-        mkdir $full or die "Error-0020: Can't mkdir '$full' because $!";
+        mkdir $full or die "Error-0040: Can't mkdir '$full' because $!";
     }
 
     my $Latest;
@@ -126,7 +130,7 @@ for (@{$aref->[1]}) { $num++;
 
         my $rdate = do {
             $date =~ m{\A [a-z]+, \s+ (\d+) \s+ ([a-z]+) \s+ (\d+) \s}xms
-              or die "Error-0030: Can't parse date /jjj, jj mmm aaaa.../ from '$date'";
+              or die "Error-0050: Can't parse date /jjj, jj mmm aaaa.../ from '$date'";
 
             my $dd   = $1;
             my $mon  = $2;
@@ -144,7 +148,7 @@ for (@{$aref->[1]}) { $num++;
               $mon eq 'sep' ?  9 :
               $mon eq 'oct' ? 10 :
               $mon eq 'nov' ? 11 :
-              $mon eq 'dec' ? 12 : die "Error-0040: Can't identify month ('$mon') from '$date'";
+              $mon eq 'dec' ? 12 : die "Error-0060: Can't identify month ('$mon') from '$date'";
 
             sprintf '%02d%02d%02d', $yyyy % 100, $mm, $dd;
         };
@@ -186,16 +190,86 @@ for (@{$aref->[1]}) { $num++;
 
 $sk1->close;
 
+my $t_size = 0;
+my $t_sec  = 0;
+
 for my $i (0..$#GList) {
     local $_ = $GList[$i];
 
+    $t_size += $_->[3];
     my $leaf = $_->[2] =~ m{[\\/] ([^\\/]+) \z}xms ? $1 : '?';
 
-    printf "%3d. (of %3d) %-11.11s-> %-15.15s [%-25.25s] %8s Kb = %-20.20s => %-30.30s\n",
-      $i + 1, scalar(@GList), $_->[0], $_->[1], $leaf, commify(sprintf('%.0f', $_->[3] / 1024)), $_->[4], $_->[5];
+    printf "%3d. (of %3d) %-11.11s-> %-15.15s",
+      $i + 1, scalar(@GList), $_->[0], $_->[1];
+
+    unless ($Env_Show eq 'SMALL') {
+        printf " %10s Kb", commify(sprintf('%.0f', $_->[3] / 1024));
+    }
+
+    if ($Env_Load eq 'MAX') {
+        my $sk2 = Term::Sk->new(' %8t %2d %3p %20b', { freq => 'd', target => $_->[3] });
+
+        my $watch_start = time;
+
+        my ($h1, $g1) = $_->[2] =~ m{\A http:// ([^/]+) (/ .*) \z}xms ? ($1, $2) :
+          die "Error-0070: Can't parse /http://.../.../ from '$_->[2]'";
+
+        my $hdl = Net::HTTP->new(Host => $h1)
+          or die "Error-0080: Can't Net::HTTP->new(Host => '$h1') because $@";
+
+        $hdl->write_request(GET => $g1, 'User-Agent' => 'Mozilla/5.0');
+        my ($code, $msg, %h) = $hdl->read_response_headers;
+
+        my $hloc = $h{'Location'};
+
+        if (defined $hloc) {
+            my ($h2, $g2) = $hloc =~ m{\A http:// ([^/]+) (/ .*) \z}xms ? ($1, $2) :
+              die "Error-0090: Can't parse /http://.../.../ from '$hloc'";
+
+            $hdl = Net::HTTP->new(Host => $h2)
+              or die "Error-0100: Can't Net::HTTP->new(Host => '$h2') because $@";
+
+            $hdl->write_request(GET => $g2, 'User-Agent' => 'Mozilla/5.0');
+            $hdl->read_response_headers; # this function returns: $code, $msg, %h
+        }
+
+        my $outname = $path.'\\P_'.$_->[0].'\\'.$_->[1];
+
+        open my $ofh, '>', $outname or die "Error-0110: Can't open > '$outname' because $!";
+        binmode $ofh;
+
+        while (1) {
+            my $ct = $hdl->read_entity_body(my $buf, 4096); # returns number of bytes read, or undef if IO-Error
+            unless (defined $ct) {
+                die "Can't read_entity ('$h1', '$g1') because $!, $@";
+            }
+
+            last unless $ct;
+
+            $sk2->up($ct);
+            print {$ofh} $buf;
+        }
+
+        close $ofh;
+
+        my $watch_stop = time;
+
+        my $elaps = $watch_stop - $watch_start;
+        $t_sec += $elaps;
+
+        $sk2->close;
+
+        printf " %8s", show_sec($elaps);
+    }
+
+    say '';
 }
 
-say '' if @GList;
+if (@GList) {
+    printf "%-42s %11s---\n", '', '-' x 11;
+    printf "%-42s %11s Kb\n", '', commify(sprintf('%.0f', $t_size / 1024));
+    say '';
+}
 
 if (%Amp) {
     say 'There were unidentified codes:';
@@ -216,4 +290,12 @@ sub commify {
     local $_ = shift;
     1 while s/^([-+]?\d+)(\d{3})/$1_$2/;
     return $_;
+}
+
+sub show_sec {
+    my $r0 = int($_[0] * 100);
+    my $r1 = $r0 % 360000;
+    my $r2 = $r0 %   6000;
+
+    return sprintf '%02d:%02d:%02d.%02d', int($r0 / 360000), int($r1 / 6000), int($r2 / 100), $r2 % 100;
 }
