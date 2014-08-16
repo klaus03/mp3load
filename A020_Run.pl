@@ -6,6 +6,23 @@ use XML::Reader::RS qw(slurp_xml);
 use File::Slurp;
 use LWP::UserAgent;
 use Net::HTTP;
+use Term::Sk;
+
+my $Env_Show = $ENV{'D_SHOW'} // '';
+my $Env_Load = $ENV{'D_LOAD'} // '';
+
+unless ($Env_Show eq 'SHORT' or $Env_Show eq 'NORMAL' or $Env_Show eq 'LONG') {
+    die "Error-0002: Invalid D_SHOW ('$Env_Show'), expected ('SHORT', 'NORMAL' or 'LONG')";
+}
+
+unless ($Env_Load eq 'MIN' or $Env_Load eq 'SIZE' or $Env_Load eq 'MAX') {
+    die "Error-0004: Invalid D_LOAD ('$Env_Load'), expected ('MIN', 'SIZE' or 'MAX')";
+}
+
+say '**********************************************';
+printf "** MP3Load (SHOW = %-8s, LOAD = %-6s) **\n", "'$Env_Show'", "'$Env_Load'";
+say '**********************************************';
+say '';
 
 my $defname = 'A025_Def.xml';
 
@@ -15,14 +32,22 @@ my $aref = slurp_xml($defname,
 );
 
 my %Amp;
+my @GList;
+
+my $sk1 = Term::Sk->new('Loading %2d %25k', { token => '' });
 
 my $path = $aref->[0][0][0] // die "Error-0010: Can't find path '/podcast/mp3dir/\@path' in '$defname'";
 
-for (@{$aref->[1]}) {
+my $num;
+my $max = scalar(@{$aref->[1]});
+
+for (@{$aref->[1]}) { $num++;
     my $id    = $_->[0];
     my $short = lc $_->[1];
     my $name  = $_->[2];
     my $url   = $_->[3];
+
+    $sk1->token(sprintf('%-11s %3d (of %3d)', $id, $num, $max));
 
     my $full = $path.'\\P_'.$id;
 
@@ -44,8 +69,6 @@ for (@{$aref->[1]}) {
             $Latest = $_;
         }
     }
-
-    say '==============================';
 
     my $xref = slurp_xml($url,
       { root => '/rss/channel', branch => [
@@ -140,25 +163,42 @@ for (@{$aref->[1]}) {
 
     @HList = sort { $a->[0] cmp $b->[0] || $a->[1] cmp $b->[1] } @HList;
 
-    for (@HList) {
-        my $leaf = $_->[1] =~ m{[\\/] ([^\\/]+) \z}xms ? $1 : '?';
+    for my $i (0..$#HList) { $sk1->up;
+        local $_ = $HList[$i];
 
-        my $size = do {
+        if (defined $Latest) {
+            next unless $_->[0] gt $Latest;
+        }
+        else {
+            next unless $i == $#HList;
+        }
+
+        my $size = $Env_Load eq 'MIN' ? 0 : do { $sk1->up;
             my $ua   = LWP::UserAgent->new;
             my $resp = $ua->request(HTTP::Request->new(HEAD => $_->[1]));
             my $len  = $resp->header('Content-Length') // 0;
             $len;
         };
 
-        printf "%-11.11s-> %-15.15s [%-25.25s] %8s Kb = %-20.20s => %-30.30s\n",
-          $id, $_->[0], $leaf, commify(sprintf('%.0f', $size / 1024)), $_->[2], $_->[3];
+        push @GList, [ $id, $_->[0], $_->[1], $size, $_->[2], $_->[3] ];
     }
-
-    say '';
 }
 
+$sk1->close;
+
+for my $i (0..$#GList) {
+    local $_ = $GList[$i];
+
+    my $leaf = $_->[2] =~ m{[\\/] ([^\\/]+) \z}xms ? $1 : '?';
+
+    printf "%3d. (of %3d) %-11.11s-> %-15.15s [%-25.25s] %8s Kb = %-20.20s => %-30.30s\n",
+      $i + 1, scalar(@GList), $_->[0], $_->[1], $leaf, commify(sprintf('%.0f', $_->[3] / 1024)), $_->[4], $_->[5];
+}
+
+say '' if @GList;
+
 if (%Amp) {
-    say 'There are unidentified codes:';
+    say 'There were unidentified codes:';
     say '';
 
     my $i;
