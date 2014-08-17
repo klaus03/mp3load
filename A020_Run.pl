@@ -65,7 +65,7 @@ for (@{$aref->[1]}) { $num++;
     my @HList;
 
     for (read_dir($full)) { $_ = lc $_;
-        next unless m{\A ([a-z]{2})_\d{6}\.mp3 \z}xms;
+        next unless m{\A ([a-z]{2})-\d{6}\.mp3 \z}xms;
         next unless $1 eq $short;
 
         $Exist{$_}++;
@@ -297,7 +297,7 @@ sub commify {
 }
 
 sub show_sec {
-    my $r2 = $_[0] %   6000;
+    my $r2 = $_[0] % 6000;
 
     return sprintf '%02d:%02d.%02d',
       int($_[0] / 6000), int($r2 / 100), $r2 % 100;
