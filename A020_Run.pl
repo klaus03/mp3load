@@ -4,8 +4,7 @@ use warnings;
 use Encode qw(encode);
 use XML::Reader::RS qw(slurp_xml);
 use File::Slurp;
-use LWP::UserAgent;
-use Net::HTTP;
+use Acme::HTTP;
 use Term::Sk;
 use Time::HiRes qw(time);
 
@@ -36,6 +35,8 @@ my %Amp;
 my @GList;
 
 my $sk1 = Term::Sk->new('Loading %2d %25k', { freq => 'd', token => '' });
+
+my $hctr = 0;
 
 my $path = $aref->[0][0][0] // die "Error-0030: Can't find path '/podcast/mp3dir/\@path' in '$defname'";
 
@@ -167,6 +168,8 @@ for (@{$aref->[1]}) { $num++;
 
     @HList = sort { $a->[0] cmp $b->[0] || $a->[1] cmp $b->[1] } @HList;
 
+    my $sctr = 0;
+
     for my $i (0..$#HList) { $sk1->up;
         local $_ = $HList[$i];
 
@@ -177,18 +180,25 @@ for (@{$aref->[1]}) { $num++;
             next unless $i == $#HList;
         }
 
+        $sctr++;
+
         my $size = $Env_Load eq 'MIN' ? 0 : do { $sk1->up;
-            my $ua   = LWP::UserAgent->new;
-            my $resp = $ua->request(HTTP::Request->new(HEAD => $_->[1]));
-            my $len  = $resp->header('Content-Length') // 0;
-            $len;
+            Acme::HTTP->new($_->[1]);
+            $Acme::HTTP::Response{'Content-Length'} // 0;
         };
 
         push @GList, [ $id, $_->[0], $_->[1], $size, $_->[2], $_->[3] ];
     }
+
+    if ($sctr) {
+        $hctr++;
+        $sk1->whisper(sprintf("%-11s-> %3d\n", $id, $sctr));
+    }
 }
 
 $sk1->close;
+
+say '' if $hctr;
 
 my $t_size = 0;
 my $t_sec  = 0;
@@ -207,41 +217,22 @@ for my $i (0..$#GList) {
     }
 
     if ($Env_Load eq 'MAX') {
-        my $sk2 = Term::Sk->new(' %8t %2d %3p %20b', { freq => 'd', target => $_->[3] });
+        my $sk2 = Term::Sk->new(' %5t.00 %2d %3p %20b', { freq => 'd', target => $_->[3] });
 
         my $watch_start = time;
 
-        my ($h1, $g1) = $_->[2] =~ m{\A http:// ([^/]+) (/ .*) \z}xms ? ($1, $2) :
-          die "Error-0070: Can't parse /http://.../.../ from '$_->[2]'";
-
-        my $hdl = Net::HTTP->new(Host => $h1)
-          or die "Error-0080: Can't Net::HTTP->new(Host => '$h1') because $@";
-
-        $hdl->write_request(GET => $g1, 'User-Agent' => 'Mozilla/5.0');
-        my ($code, $msg, %h) = $hdl->read_response_headers;
-
-        my $hloc = $h{'Location'};
-
-        if (defined $hloc) {
-            my ($h2, $g2) = $hloc =~ m{\A http:// ([^/]+) (/ .*) \z}xms ? ($1, $2) :
-              die "Error-0090: Can't parse /http://.../.../ from '$hloc'";
-
-            $hdl = Net::HTTP->new(Host => $h2)
-              or die "Error-0100: Can't Net::HTTP->new(Host => '$h2') because $@";
-
-            $hdl->write_request(GET => $g2, 'User-Agent' => 'Mozilla/5.0');
-            $hdl->read_response_headers; # this function returns: $code, $msg, %h
-        }
+        my $hdl = Acme::HTTP->new($_->[2])
+          or die "Error-0070: Can't Acme::HTTP->new('$_->[2]') because $@";
 
         my $outname = $path.'\\P_'.$_->[0].'\\'.$_->[1];
 
-        open my $ofh, '>', $outname or die "Error-0110: Can't open > '$outname' because $!";
+        open my $ofh, '>', $outname or die "Error-0080: Can't open > '$outname' because $!";
         binmode $ofh;
 
         while (1) {
             my $ct = $hdl->read_entity_body(my $buf, 4096); # returns number of bytes read, or undef if IO-Error
             unless (defined $ct) {
-                die "Can't read_entity ('$h1', '$g1') because $!, $@";
+                die "Error-0090: Can't Acme::HTTP->read_entity_body('$_->[2]') because $@";
             }
 
             last unless $ct;
@@ -254,7 +245,7 @@ for my $i (0..$#GList) {
 
         my $watch_stop = time;
 
-        my $elaps = $watch_stop - $watch_start;
+        my $elaps = int(($watch_stop - $watch_start) * 100);
         $t_sec += $elaps;
 
         $sk2->close;
@@ -266,8 +257,21 @@ for my $i (0..$#GList) {
 }
 
 if (@GList) {
-    printf "%-42s %11s---\n", '', '-' x 11;
-    printf "%-42s %11s Kb\n", '', commify(sprintf('%.0f', $t_size / 1024));
+    printf "%-42s %11s---", '', '-' x 11;
+
+    if ($Env_Load eq 'MAX') {
+        printf " %8s", '-' x 8;
+    }
+
+    say '';
+
+    printf "%-42s %11s Kb", '', commify(sprintf('%.0f', $t_size / 1024));
+
+    if ($Env_Load eq 'MAX') {
+        printf " %8s", show_sec($t_sec);
+    }
+
+    say '';
     say '';
 }
 
@@ -293,9 +297,8 @@ sub commify {
 }
 
 sub show_sec {
-    my $r0 = int($_[0] * 100);
-    my $r1 = $r0 % 360000;
-    my $r2 = $r0 %   6000;
+    my $r2 = $_[0] %   6000;
 
-    return sprintf '%02d:%02d:%02d.%02d', int($r0 / 360000), int($r1 / 6000), int($r2 / 100), $r2 % 100;
+    return sprintf '%02d:%02d.%02d',
+      int($_[0] / 6000), int($r2 / 100), $r2 % 100;
 }
