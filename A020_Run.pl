@@ -8,20 +8,15 @@ use Acme::HTTP;
 use Term::Sk;
 use Time::HiRes qw(time);
 
-my $Env_Show = $ENV{'D_SHOW'} // '';
 my $Env_Load = $ENV{'D_LOAD'} // '';
-
-unless ($Env_Show eq 'SHORT' or $Env_Show eq 'NORMAL' or $Env_Show eq 'LONG') {
-    die "Error-0010: Invalid D_SHOW ('$Env_Show'), expected ('SHORT', 'NORMAL' or 'LONG')";
-}
 
 unless ($Env_Load eq 'MIN' or $Env_Load eq 'SIZE' or $Env_Load eq 'MAX') {
     die "Error-0020: Invalid D_LOAD ('$Env_Load'), expected ('MIN', 'SIZE' or 'MAX')";
 }
 
-say '**********************************************';
-printf "** MP3Load (SHOW = %-8s, LOAD = %-6s) **\n", "'$Env_Show'", "'$Env_Load'";
-say '**********************************************';
+say '*****************************';
+printf "** MP3Load (LOAD = %-6s) **\n", "'$Env_Load'";
+say '*****************************';
 say '';
 
 my $defname = 'A025_Def.xml';
@@ -209,12 +204,8 @@ for my $i (0..$#GList) {
     $t_size += $_->[3];
     my $leaf = $_->[2] =~ m{[\\/] ([^\\/]+) \z}xms ? $1 : '?';
 
-    printf "%3d. (of %3d) %-11.11s-> %-15.15s",
-      $i + 1, scalar(@GList), $_->[0], $_->[1];
-
-    unless ($Env_Show eq 'SMALL') {
-        printf " %10s Kb", commify(sprintf('%.0f', $_->[3] / 1024));
-    }
+    printf "%3d. (of %3d) %-11.11s-> %-15.15s %10s Kb",
+      $i + 1, scalar(@GList), $_->[0], $_->[1], commify(sprintf('%.0f', $_->[3] / 1024));
 
     if ($Env_Load eq 'MAX') {
         my $sk2 = Term::Sk->new(' %5t.00 %2d %3p %20b', { freq => 'd', target => $_->[3] });
@@ -246,21 +237,24 @@ for my $i (0..$#GList) {
         my $watch_stop = time;
 
         my $elaps = int(($watch_stop - $watch_start) * 100);
+
+        $elaps = 1 if $elaps == 0;
+
         $t_sec += $elaps;
 
         $sk2->close;
 
-        printf " %8s", show_sec($elaps);
+        printf " %8s (%10s Kb/sec)", show_sec($elaps), commify(sprintf('%0.f', $_->[3] / 10.24 / $elaps));
     }
 
     say '';
 }
 
 if (@GList) {
-    printf "%-42s %11s---", '', '-' x 11;
+    printf "%42s %11s---", '-' x 42, '-' x 11;
 
     if ($Env_Load eq 'MAX') {
-        printf " %8s", '-' x 8;
+        printf " %8s %19s", '-' x 8, '-' x 19;
     }
 
     say '';
@@ -268,7 +262,7 @@ if (@GList) {
     printf "%-42s %11s Kb", '', commify(sprintf('%.0f', $t_size / 1024));
 
     if ($Env_Load eq 'MAX') {
-        printf " %8s", show_sec($t_sec);
+        printf " %8s (%10s Kb/sec)", show_sec($t_sec), commify(sprintf('%0.f', $t_size / 10.24 / $t_sec));
     }
 
     say '';
