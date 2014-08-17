@@ -35,6 +35,8 @@ my $hctr = 0;
 
 my $path = $aref->[0][0][0] // die "Error-0030: Can't find path '/podcast/mp3dir/\@path' in '$defname'";
 
+my $logname = $path.'\\A_Data\\logfile.txt';
+
 my $num;
 my $max = scalar(@{$aref->[1]});
 
@@ -204,8 +206,10 @@ for my $i (0..$#GList) {
     $t_size += $_->[3];
     my $leaf = $_->[2] =~ m{[\\/] ([^\\/]+) \z}xms ? $1 : '?';
 
-    printf "%3d. (of %3d) %-11.11s-> %-15.15s %10s Kb",
-      $i + 1, scalar(@GList), $_->[0], $_->[1], commify(sprintf('%.0f', $_->[3] / 1024));
+    printf '%3d. (of %3d) ', $i + 1, scalar(@GList);
+
+    my $p1 = sprintf '%-11.11s-> %-15.15s %10s Kb', $_->[0], $_->[1], commify(sprintf('%.0f', $_->[3] / 1024));
+    print $p1;
 
     if ($Env_Load eq 'MAX') {
         my $sk2 = Term::Sk->new(' %5t.00 %2d %3p %20b', { freq => 'd', target => $_->[3] });
@@ -244,7 +248,10 @@ for my $i (0..$#GList) {
 
         $sk2->close;
 
-        printf " %8s (%10s Kb/sec)", show_sec($elaps), commify(sprintf('%0.f', $_->[3] / 10.24 / $elaps));
+        my $p2 = sprintf ' %8s (%10s Kb/sec)', show_sec($elaps), commify(sprintf('%0.f', $_->[3] / 10.24 / $elaps));
+        print $p2;
+
+        append_file($logname, sprintf('%-19.19s %s%s', dtime($watch_stop), $p1, $p2), "\n");
     }
 
     say '';
@@ -267,6 +274,15 @@ if (@GList) {
 
     say '';
     say '';
+}
+else {
+    if ($Env_Load eq 'MAX') {
+        append_file($logname, sprintf('%-19.19s %s', dtime(time), '*** download empty ***'), "\n");
+    }
+}
+
+if ($Env_Load eq 'MAX') {
+    append_file($logname, '-' x 40, "\n");
 }
 
 if (%Amp) {
@@ -295,4 +311,15 @@ sub show_sec {
 
     return sprintf '%02d:%02d.%02d',
       int($_[0] / 6000), int($r2 / 100), $r2 % 100;
+}
+
+sub dtime {
+    my $stamp = int($_[0]);
+
+    my ($sec, $min, $hour, $mday, $mon, $year) = localtime($stamp);
+
+    $mon++;
+    $year += 1900;
+
+    sprintf '%02d/%02d/%04d %02d:%02d:%02d', $mday, $mon, $year, $hour, $min, $sec;
 }
