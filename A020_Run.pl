@@ -180,6 +180,7 @@ for (@{$aref->[1]}) { $num++;
 
         my $size = $Env_Load eq 'MIN' ? 0 : do { $sk1->up;
             require Acme::HTTP;
+            %Acme::HTTP::Response = ();
             Acme::HTTP->new($_->[1]);
             $Acme::HTTP::Response{'Content-Length'} // 0;
         };
