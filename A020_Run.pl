@@ -70,7 +70,7 @@ for (@{$aref->[1]}) { $num++;
 
         $Exist{$_}++;
 
-        unless (defined($Latest) and $Latest le $_) {
+        unless (defined($Latest) and $Latest ge $_) {
             $Latest = $_;
         }
     }
@@ -95,7 +95,7 @@ for (@{$aref->[1]}) { $num++;
         my $link  = $item->[2];
         my $date  = lc($item->[3]);
 
-        next unless $link =~ m{\.mp3 \z}xms;
+        next unless defined($link) and $link =~ m{\.mp3 \z}xms;
 
         my $ctr = 0;
 
