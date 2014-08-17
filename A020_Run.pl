@@ -4,7 +4,6 @@ use warnings;
 use Encode qw(encode);
 use XML::Reader::RS qw(slurp_xml);
 use File::Slurp;
-use Acme::HTTP;
 use Term::Sk;
 use Time::HiRes qw(time);
 
@@ -180,6 +179,7 @@ for (@{$aref->[1]}) { $num++;
         $sctr++;
 
         my $size = $Env_Load eq 'MIN' ? 0 : do { $sk1->up;
+            require Acme::HTTP;
             Acme::HTTP->new($_->[1]);
             $Acme::HTTP::Response{'Content-Length'} // 0;
         };
