@@ -277,6 +277,9 @@ if (@GList) {
     say '';
 }
 else {
+    say '--- download empty ---';
+    say '';
+
     if ($Env_Load eq 'MAX') {
         append_file($logname, sprintf('%-19.19s %s', dtime(time), '*** download empty ***'), "\n");
     }
