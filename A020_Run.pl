@@ -111,6 +111,7 @@ for (@{$aref->[1]}) { $num++;
         my $c2 = 0;
 
         unless ($short eq 'sk') {
+            $c2 += $desc =~ s{&\#231;}{c}xmsg;
             $c2 += $desc =~ s{&\#8211;}{-}xmsg;
             $c2 += $desc =~ s{&\#8212;}{-}xmsg;
             $c2 += $desc =~ s{&\#8217;}{'}xmsg;
@@ -121,6 +122,10 @@ for (@{$aref->[1]}) { $num++;
             $c2 += $desc =~ s{&quot;}{'}xmsg;
             $c2 += $desc =~ s{&lt;}{<}xmsg;
             $c2 += $desc =~ s{&gt;}{>}xmsg;
+            $c2 += $desc =~ s{&nbsp;}{ }xmsg;
+            $c2 += $desc =~ s{&ndash;}{-}xmsg;
+            $c2 += $desc =~ s{&rsquo;}{'}xmsg;
+            $c2 += $desc =~ s{&uuml;}{ue}xmsg;
 
             $c2 += $desc =~ s{&amp;}{&}xmsg;
         }
