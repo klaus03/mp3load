@@ -91,7 +91,7 @@ for (@{$aref->[1]}) { $num++;
         my $link  = $item->[2];
         my $date  = lc($item->[3]);
 
-        next unless defined($link) and $link =~ m{\.mp3 \z}xms;
+        next unless defined($link) and $link =~ m{\.mp3 (?: \? |\z)}xms;
 
         my $ctr = 0;
 
