@@ -7,6 +7,9 @@ use File::Slurp;
 use Term::Sk;
 use Time::HiRes qw(time);
 
+$Acme::HTTP::MaxIt = 5; # Set limit for iterations in Acme::HTTP, which in turn is used by XML::Reader::RS...
+$Acme::HTTP::MaxIt += 0; # This line is just in place to avoid the warning: 'variable only used once...'
+
 my $Env_Load = $ENV{'D_LOAD'} // '';
 
 unless ($Env_Load eq 'MIN' or $Env_Load eq 'SIZE' or $Env_Load eq 'MAX') {
