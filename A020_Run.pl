@@ -225,6 +225,8 @@ for my $i (0..$#GList) {
 
         my $watch_start = time;
 
+        require Acme::HTTP;
+
         my $hdl = Acme::HTTP->new($_->[2])
           or die "Error-0070: Can't Acme::HTTP->new('$_->[2]') because $@";
 
@@ -233,7 +235,13 @@ for my $i (0..$#GList) {
         open my $ofh, '>', $outname or die "Error-0080: Can't open > '$outname' because $!";
         binmode $ofh;
 
+        use IO::Select;
+        my $sel = IO::Select->new($hdl);
+
         while (1) {
+            # we allow 15 seconds before timeout
+            die "Error-0085: Timeout (15 sec) for '$_->[2]'" unless $sel->can_read(15);
+
             my $ct = $hdl->read_entity_body(my $buf, 4096); # returns number of bytes read, or undef if IO-Error
             unless (defined $ct) {
                 die "Error-0090: Can't Acme::HTTP->read_entity_body('$_->[2]') because $@";
