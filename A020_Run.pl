@@ -9,8 +9,8 @@ use Term::Sk;
 use Time::HiRes qw(time);
 use Acme::HTTP;
 
-set_redir_max(7);
-set_timeout(10);
+set_redir_max(2);
+set_timeout(5);
 
 my $Env_Load = $ENV{'D_LOAD'} // '';
 
@@ -76,7 +76,8 @@ for (@{$aref->[1]}) { $num++;
         }
     }
 
-    my $xref = slurp_xml($url,
+    my $xref = eval {
+      slurp_xml($url,
       { root => '/rss/channel', branch => [
         '/title',
         '/description',
@@ -87,8 +88,13 @@ for (@{$aref->[1]}) { $num++;
         '/description',
         '/enclosure/@url',
         '/pubDate',
-      ] },
-    );
+      ] } )
+    };
+    if ($@) {
+        $sk1->whisper(sprintf("%-11s-> %s\n", $id, 
+          'Error '.($@ =~ s{\A .* \s because \s+}''xmsr =~ s{\s+ at \s .* \z}''xmsr)));
+        next;
+    }
 
     for my $item (@{$xref->[1]}) {
         my $title = encode('iso-8859-1', $item->[0]);
@@ -221,18 +227,17 @@ for my $i (0..$#GList) {
     print $p1;
 
     if ($Env_Load eq 'MAX') {
-        if ($_->[3] == 0) {
-            print " empty";
-            append_file($logname, sprintf('%-19.19s %s%s', dtime(time), $p1, ' empty' ), "\n");
-        }
-        else {
-            my $sk2 = Term::Sk->new(' %5t.00 %2d %3p %20b', { freq => 'd', target => $_->[3] });
+        my $sk2 = Term::Sk->new(' %5t.00 %2d %3p %20b', { freq => 'd', target => $_->[3] });
 
-            my $watch_start = time;
+        my $watch_start = time;
 
-            my $hdl = Acme::HTTP->new($_->[2])
-              or die "Error-0070: Can't Acme::HTTP->new('$_->[2]') because $@";
+        my $emsg = '';
 
+        my $hdl = Acme::HTTP->new($_->[2]) or do {
+          $emsg = ' Error '.($@ =~ s{\A .* \s because \s+}''xmsr =~ s{\s+ at \s .* \z}''xmsr);
+        };
+
+        if ($hdl) {
             my $tmpname = $path.'\\A_Data\\temp.dat';
             my $outname = $path.'\\P_'.$_->[0].'\\'.$_->[1];
 
@@ -243,12 +248,10 @@ for my $i (0..$#GList) {
             open my $ofh, '>', $tmpname or die "Error-0080: Can't open > '$tmpname' because $!";
             binmode $ofh;
 
-            my $emsg = '';
-
             while (1) {
                 my $ct = $hdl->read_entity_body(my $buf, 4096); # returns number of bytes read, or undef if IO-Error
                 unless (defined $ct) {
-                    $emsg = "Error $@";
+                    $emsg = " Error $@";
                     last;
                 }
 
@@ -263,29 +266,22 @@ for my $i (0..$#GList) {
             if ($emsg eq '') {
                 move($tmpname, $outname) or die "Error-0095: Can't move '$tmpname', '$outname' because $!";
             }
-
-            my $watch_stop = time;
-
-            my $elaps = int(($watch_stop - $watch_start) * 100);
-
-            $elaps = 1 if $elaps == 0;
-
-            $t_sec += $elaps;
-
-            $sk2->close;
-
-            if ($emsg eq '') {
-                my $p2 = sprintf ' %8s (%10s Kb/sec)', show_sec($elaps), commify(sprintf('%0.f', $_->[3] / 10.24 / $elaps));
-                print $p2;
-
-                append_file($logname, sprintf('%-19.19s %s%s', dtime($watch_stop), $p1, $p2), "\n");
-            }
-            else {
-                print $emsg;
-
-                append_file($logname, sprintf('%-19.19s %s%s', dtime($watch_stop), $p1, $emsg), "\n");
-            }
         }
+
+        $sk2->close;
+
+        my $watch_stop = time;
+
+        my $elaps = int(($watch_stop - $watch_start) * 100);
+
+        $elaps = 1 if $elaps == 0;
+
+        $t_sec += $elaps;
+
+        my $p2 = sprintf ' %8s (%10s Kb/sec)%s', show_sec($elaps), commify(sprintf('%0.f', $_->[3] / 10.24 / $elaps)), $emsg;
+        print $p2;
+
+        append_file($logname, sprintf('%-19.19s %s%s', dtime($watch_stop), $p1, $p2), "\n");
     }
 
     say '';
