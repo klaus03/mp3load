@@ -9,8 +9,8 @@ use Term::Sk;
 use Time::HiRes qw(time);
 use Acme::HTTP;
 
-set_redir_max(2);
-set_timeout(5);
+set_redir_max(5);
+set_timeout(10);
 
 my $Env_Load = $ENV{'D_LOAD'} // '';
 
@@ -40,6 +40,7 @@ my $hctr = 0;
 my $path = $aref->[0][0][0] // die "Error-0030: Can't find path '/podcast/mp3dir/\@path' in '$defname'";
 
 my $logname = $path.'\\A_Data\\logfile.txt';
+my $dscname = $path.'\\A_Data\\descfile.txt';
 
 my $num;
 my $max = scalar(@{$aref->[1]});
@@ -175,7 +176,7 @@ for (@{$aref->[1]}) { $num++;
             }
         }
 
-        push @HList, [ $fname, $link, $title, $desc ];
+        push @HList, [ $fname, $link, \$title, \$desc ];
     }
 
     @HList = sort { $a->[0] cmp $b->[0] || $a->[1] cmp $b->[1] } @HList;
@@ -282,6 +283,48 @@ for my $i (0..$#GList) {
         print $p2;
 
         append_file($logname, sprintf('%-19.19s %s%s', dtime($watch_stop), $p1, $p2), "\n");
+
+        if ($emsg eq '') {
+            append_file($dscname, sprintf('%-19.19s %s%s', dtime($watch_stop), $p1, $p2), "\n", '=' x 93, "\n");
+
+            my $tot = ${$_->[4]}.' '.${$_->[5]};
+
+            my $ctxt  = '';
+            my $cline = '';
+            my $clen  = 100;
+
+            for my $frag (split m{\s+}xms, $tot) {
+                $cline .= ($cline eq '' ? '' : ' ').$frag;
+
+                while (length($cline) > $clen) {
+                    my ($left, $right) = (substr($cline, 0, $clen), substr($cline, $clen));
+
+                    if ($left =~ m{\S \z}xms and $right =~ m{\A \S}xms) {
+                        ($left, $right) = $left =~ m{\A (.* \S) \s+ (\S+) \z}xms ? ($1, $2.$right) : ($cline, '');
+                    }
+
+                    $left  =~ s{\s+ \z}''xms;
+                    $right =~ s{\A \s+}''xms;
+
+                    if (length($left) > $clen) {
+                        my $part = substr($left, $clen);
+                        $part =~ s{\A \s+}''xms;
+
+                        $left = substr($left, 0, $clen);
+                        $right = ($part eq '' ? '' : $part.' ').$right;
+                    }
+
+                    $ctxt .= '  > '.$left."\n";
+                    $cline = $right;
+                }
+            }
+
+            unless ($cline eq '') {
+                $ctxt .= '  > '.$cline."\n";
+            }
+
+            append_file($dscname, $ctxt, "\n");
+        }
     }
 
     say '';

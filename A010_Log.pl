@@ -8,7 +8,7 @@ say '** Logfile **';
 say '*************';
 say '';
 
-my $window = 200;
+my $window = $ENV{'D_WINDOW'};
 
 my $defname = 'A025_Def.xml';
 
@@ -19,7 +19,7 @@ my $aref = slurp_xml($defname,
 
 my $path = $aref->[0][0][0] // die "Error-0010: Can't find path '/podcast/mp3dir/\@path' in '$defname'";
 
-my $logname = $path.'\\A_Data\\logfile.txt';
+my $logname = $path.'\\A_Data\\'.$ENV{'D_NAME'};
 
 my $ifh;
 
