@@ -7,9 +7,6 @@ use File::Slurp;
 use Term::Sk;
 use Time::HiRes qw(time);
 
-$Acme::HTTP::MaxIt = 5; # Set limit for iterations in Acme::HTTP, which in turn is used by XML::Reader::RS...
-$Acme::HTTP::MaxIt += 0; # This line is just in place to avoid the warning: 'variable only used once...'
-
 my $Env_Load = $ENV{'D_LOAD'} // '';
 
 unless ($Env_Load eq 'MIN' or $Env_Load eq 'SIZE' or $Env_Load eq 'MAX') {
@@ -188,9 +185,12 @@ for (@{$aref->[1]}) { $num++;
 
         my $size = $Env_Load eq 'MIN' ? 0 : do { $sk1->up;
             require Acme::HTTP;
-            %Acme::HTTP::Response = ();
+            Acme::HTTP->import(qw(:all));
+            set_redir_max(7);
+            set_timeout(10);
+
             Acme::HTTP->new($_->[1]);
-            $Acme::HTTP::Response{'Content-Length'} // 0;
+            get_response()->{'Content-Length'} // 0;
         };
 
         push @GList, [ $id, $_->[0], $_->[1], $size, $_->[2], $_->[3] ];
@@ -225,7 +225,7 @@ for my $i (0..$#GList) {
 
         my $watch_start = time;
 
-        require Acme::HTTP;
+        # Here we know that Acme::HTTP has already been required (because @GList is not empty)
 
         my $hdl = Acme::HTTP->new($_->[2])
           or die "Error-0070: Can't Acme::HTTP->new('$_->[2]') because $@";
@@ -235,13 +235,7 @@ for my $i (0..$#GList) {
         open my $ofh, '>', $outname or die "Error-0080: Can't open > '$outname' because $!";
         binmode $ofh;
 
-        use IO::Select;
-        my $sel = IO::Select->new($hdl);
-
         while (1) {
-            # we allow 15 seconds before timeout
-            die "Error-0085: Timeout (15 sec) for '$_->[2]'" unless $sel->can_read(15);
-
             my $ct = $hdl->read_entity_body(my $buf, 4096); # returns number of bytes read, or undef if IO-Error
             unless (defined $ct) {
                 die "Error-0090: Can't Acme::HTTP->read_entity_body('$_->[2]') because $@";
