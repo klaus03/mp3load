@@ -6,6 +6,10 @@ use XML::Reader::RS qw(slurp_xml);
 use File::Slurp;
 use Term::Sk;
 use Time::HiRes qw(time);
+use Acme::HTTP;
+
+set_redir_max(7);
+set_timeout(10);
 
 my $Env_Load = $ENV{'D_LOAD'} // '';
 
@@ -184,11 +188,6 @@ for (@{$aref->[1]}) { $num++;
         $sctr++;
 
         my $size = $Env_Load eq 'MIN' ? 0 : do { $sk1->up;
-            require Acme::HTTP;
-            Acme::HTTP->import(qw(:all));
-            set_redir_max(7);
-            set_timeout(10);
-
             Acme::HTTP->new($_->[1]);
             get_response()->{'Content-Length'} // 0;
         };
@@ -224,8 +223,6 @@ for my $i (0..$#GList) {
         my $sk2 = Term::Sk->new(' %5t.00 %2d %3p %20b', { freq => 'd', target => $_->[3] });
 
         my $watch_start = time;
-
-        # Here we know that Acme::HTTP has already been required (because @GList is not empty)
 
         my $hdl = Acme::HTTP->new($_->[2])
           or die "Error-0070: Can't Acme::HTTP->new('$_->[2]') because $@";
