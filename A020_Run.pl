@@ -4,6 +4,7 @@ use warnings;
 use Encode qw(encode);
 use XML::Reader::RS qw(slurp_xml);
 use File::Slurp;
+use File::Copy;
 use Term::Sk;
 use Time::HiRes qw(time);
 use Acme::HTTP;
@@ -220,46 +221,71 @@ for my $i (0..$#GList) {
     print $p1;
 
     if ($Env_Load eq 'MAX') {
-        my $sk2 = Term::Sk->new(' %5t.00 %2d %3p %20b', { freq => 'd', target => $_->[3] });
+        if ($_->[3] == 0) {
+            print " empty";
+            append_file($logname, sprintf('%-19.19s %s%s', dtime(time), $p1, ' empty' ), "\n");
+        }
+        else {
+            my $sk2 = Term::Sk->new(' %5t.00 %2d %3p %20b', { freq => 'd', target => $_->[3] });
 
-        my $watch_start = time;
+            my $watch_start = time;
 
-        my $hdl = Acme::HTTP->new($_->[2])
-          or die "Error-0070: Can't Acme::HTTP->new('$_->[2]') because $@";
+            my $hdl = Acme::HTTP->new($_->[2])
+              or die "Error-0070: Can't Acme::HTTP->new('$_->[2]') because $@";
 
-        my $outname = $path.'\\P_'.$_->[0].'\\'.$_->[1];
+            my $tmpname = $path.'\\A_Data\\temp.dat';
+            my $outname = $path.'\\P_'.$_->[0].'\\'.$_->[1];
 
-        open my $ofh, '>', $outname or die "Error-0080: Can't open > '$outname' because $!";
-        binmode $ofh;
-
-        while (1) {
-            my $ct = $hdl->read_entity_body(my $buf, 4096); # returns number of bytes read, or undef if IO-Error
-            unless (defined $ct) {
-                die "Error-0090: Can't Acme::HTTP->read_entity_body('$_->[2]') because $@";
+            if (-e $outname) {
+                unlink $outname or die "Error-0075: Can't unlink '$outname' because $!";
             }
 
-            last unless $ct;
+            open my $ofh, '>', $tmpname or die "Error-0080: Can't open > '$tmpname' because $!";
+            binmode $ofh;
 
-            $sk2->up($ct);
-            print {$ofh} $buf;
+            my $emsg = '';
+
+            while (1) {
+                my $ct = $hdl->read_entity_body(my $buf, 4096); # returns number of bytes read, or undef if IO-Error
+                unless (defined $ct) {
+                    $emsg = "Error $@";
+                    last;
+                }
+
+                last unless $ct;
+
+                $sk2->up($ct);
+                print {$ofh} $buf;
+            }
+
+            close $ofh;
+
+            if ($emsg eq '') {
+                move($tmpname, $outname) or die "Error-0095: Can't move '$tmpname', '$outname' because $!";
+            }
+
+            my $watch_stop = time;
+
+            my $elaps = int(($watch_stop - $watch_start) * 100);
+
+            $elaps = 1 if $elaps == 0;
+
+            $t_sec += $elaps;
+
+            $sk2->close;
+
+            if ($emsg eq '') {
+                my $p2 = sprintf ' %8s (%10s Kb/sec)', show_sec($elaps), commify(sprintf('%0.f', $_->[3] / 10.24 / $elaps));
+                print $p2;
+
+                append_file($logname, sprintf('%-19.19s %s%s', dtime($watch_stop), $p1, $p2), "\n");
+            }
+            else {
+                print $emsg;
+
+                append_file($logname, sprintf('%-19.19s %s%s', dtime($watch_stop), $p1, $emsg), "\n");
+            }
         }
-
-        close $ofh;
-
-        my $watch_stop = time;
-
-        my $elaps = int(($watch_stop - $watch_start) * 100);
-
-        $elaps = 1 if $elaps == 0;
-
-        $t_sec += $elaps;
-
-        $sk2->close;
-
-        my $p2 = sprintf ' %8s (%10s Kb/sec)', show_sec($elaps), commify(sprintf('%0.f', $_->[3] / 10.24 / $elaps));
-        print $p2;
-
-        append_file($logname, sprintf('%-19.19s %s%s', dtime($watch_stop), $p1, $p2), "\n");
     }
 
     say '';
