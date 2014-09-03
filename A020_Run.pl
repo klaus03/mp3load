@@ -1,7 +1,8 @@
 use 5.020;
 use warnings;
 
-use Encode qw(encode);
+use HTML::Entities;
+use Text::Fy::Utils qw(commify asciify);
 use XML::Reader::RS qw(slurp_xml);
 use File::Slurp;
 use File::Copy;
@@ -30,7 +31,6 @@ my $aref = slurp_xml($defname,
   { root => '/podcast/flist/feed', branch => [ '/@id', '/@short', '/@name', '/@src' ] },
 );
 
-my %Amp;
 my @GList;
 
 my $sk1 = Term::Sk->new('Loading %2d %25k', { freq => 'd', token => '' });
@@ -98,8 +98,8 @@ for (@{$aref->[1]}) { $num++;
     }
 
     for my $item (@{$xref->[1]}) {
-        my $title = encode('iso-8859-1', $item->[0]);
-        my $desc  = encode('iso-8859-1', $item->[1]);
+        my $title = asciify(decode_entities($item->[0]), [ 'pure' ]);
+        my $desc  = asciify(decode_entities($item->[1]), [ 'pure' ]);
         my $link  = $item->[2];
         my $date  = lc($item->[3]);
 
@@ -168,13 +168,6 @@ for (@{$aref->[1]}) { $num++;
         };
 
         my $fname = $short.'-'.$rdate.'.mp3';
-
-        unless ($short eq 'sk') {
-            for ($desc =~ m{[^&]{0,12} & [^&]{0,30}}xmsg) {
-                my $code = m{(& [\#\w]+ ;)}xms ? $1 : '&???';
-                push @{$Amp{$code}}, [ $id, $fname, $_ ];
-            }
-        }
 
         push @HList, [ $fname, $link, \$title, \$desc ];
     }
@@ -359,27 +352,6 @@ else {
 
 if ($Env_Load eq 'MAX') {
     append_file($logname, '-' x 40, "\n");
-}
-
-if (%Amp) {
-    say 'There were unidentified codes:';
-    say '';
-
-    my $i;
-
-    for my $cd (sort keys %Amp) {
-        for (@{$Amp{$cd}}) { $i++;
-            printf "%3d. %-10s => %s\n", $i, $cd, "($_->[0], $_->[1], $_->[2])";
-        }
-    }
-
-    say '';
-}
-
-sub commify {
-    local $_ = shift;
-    1 while s/^([-+]?\d+)(\d{3})/$1_$2/;
-    return $_;
 }
 
 sub show_sec {
