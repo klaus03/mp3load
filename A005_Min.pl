@@ -3,4 +3,4 @@ use warnings;
 
 $ENV{'D_LOAD'} = 'SIZE';
 
-system qq{perl A020_Run.pl};
+system qq{perl -C6 -MAcme::FixIO A020_Run.pl};

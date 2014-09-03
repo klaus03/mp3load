@@ -45,6 +45,8 @@ my $dscname = $path.'\\A_Data\\descfile.txt';
 my $num;
 my $max = scalar(@{$aref->[1]});
 
+my %AList;
+
 for (@{$aref->[1]}) { $num++;
     my $id    = $_->[0];
     my $short = lc $_->[1];
@@ -98,8 +100,17 @@ for (@{$aref->[1]}) { $num++;
     }
 
     for my $item (@{$xref->[1]}) {
-        my $title = asciify(decode_entities($item->[0]), [ 'pure' ]);
-        my $desc  = asciify(decode_entities($item->[1]), [ 'pure' ]);
+
+        for (@$item) {
+            next unless defined $_;
+
+            for (m{(&\#?\w*;)}xmsg) {
+                $AList{$_}++;
+            }
+        }
+
+        my $title = asciify(decode_entities($item->[0]), [ 'iso' ]);
+        my $desc  = asciify(decode_entities($item->[1]), [ 'iso' ]);
         my $link  = $item->[2];
         my $date  = lc($item->[3]);
 
@@ -353,6 +364,19 @@ else {
 if ($Env_Load eq 'MAX') {
     append_file($logname, '-' x 40, "\n");
 }
+
+say '';
+say '------------------------------------';
+
+my $nr = 0;
+
+for my $he (sort keys %AList) { $nr++;
+    my $ch = decode_entities($he);
+
+    printf "%2d. %-10s => %5d %-8s %s\n", $nr, $he, ord($ch), "'$ch'", "'".asciify($ch, [ 'iso' ])."'";
+}
+
+say '';
 
 sub show_sec {
     my $r2 = $_[0] % 6000;
