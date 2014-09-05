@@ -105,10 +105,9 @@ for (@{$aref->[1]}) { $num++;
 
         next unless defined($link) and $link =~ m{\.mp3 (?: \? |\z)}xms;
 
-        my $ctr = 0;
-
         unless ($short eq 'sk') {
-            $ctr += $desc =~ s{< [^>]* >}''xmsg;
+            $desc  =~ s{< [^>]* >}''xmsg;
+            $title =~ s{< [^>]* >}''xmsg;
         }
 
         $desc =~ s{\s+}' 'xmsg;
