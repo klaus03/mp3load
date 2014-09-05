@@ -45,8 +45,6 @@ my $dscname = $path.'\\A_Data\\descfile.txt';
 my $num;
 my $max = scalar(@{$aref->[1]});
 
-my %AList;
-
 for (@{$aref->[1]}) { $num++;
     my $id    = $_->[0];
     my $short = lc $_->[1];
@@ -100,14 +98,6 @@ for (@{$aref->[1]}) { $num++;
     }
 
     for my $item (@{$xref->[1]}) {
-        for (@$item) {
-            next unless defined $_;
-
-            for (m{(&\#?\w*;)}xmsg) {
-                $AList{$_}++;
-            }
-        }
-
         my $title = asciify(decode_entities($item->[0]), [ 'iso' ]);
         my $desc  = asciify(decode_entities($item->[1]), [ 'iso' ]);
         my $link  = $item->[2];
