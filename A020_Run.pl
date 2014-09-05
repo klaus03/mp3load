@@ -100,7 +100,6 @@ for (@{$aref->[1]}) { $num++;
     }
 
     for my $item (@{$xref->[1]}) {
-
         for (@$item) {
             next unless defined $_;
 
@@ -122,36 +121,13 @@ for (@{$aref->[1]}) { $num++;
             $ctr += $desc =~ s{< [^>]* >}''xmsg;
         }
 
-        if ($short eq 'sn') {
-            $desc =~ s{\s Q&A \s}' Q+A 'xmsg;
-            $desc =~ s{\s  &  \s}' + 'xmsg;
-        }
-
         $desc =~ s{\s+}' 'xmsg;
         $desc =~ s{\A \s}''xms;
         $desc =~ s{\s \z}''xms;
 
-        my $c2 = 0;
-
-        unless ($short eq 'sk') {
-            $c2 += $desc =~ s{&\#231;}{c}xmsg;
-            $c2 += $desc =~ s{&\#8211;}{-}xmsg;
-            $c2 += $desc =~ s{&\#8212;}{-}xmsg;
-            $c2 += $desc =~ s{&\#8217;}{'}xmsg;
-            $c2 += $desc =~ s{&\#8220;}{"}xmsg;
-            $c2 += $desc =~ s{&\#8221;}{"}xmsg;
-            $c2 += $desc =~ s{&\#8230;}{...}xmsg;
-
-            $c2 += $desc =~ s{&quot;}{'}xmsg;
-            $c2 += $desc =~ s{&lt;}{<}xmsg;
-            $c2 += $desc =~ s{&gt;}{>}xmsg;
-            $c2 += $desc =~ s{&nbsp;}{ }xmsg;
-            $c2 += $desc =~ s{&ndash;}{-}xmsg;
-            $c2 += $desc =~ s{&rsquo;}{'}xmsg;
-            $c2 += $desc =~ s{&uuml;}{ue}xmsg;
-
-            $c2 += $desc =~ s{&amp;}{&}xmsg;
-        }
+        $title =~ s{\s+}' 'xmsg;
+        $title =~ s{\A \s}''xms;
+        $title =~ s{\s \z}''xms;
 
         my $rdate = do {
             $date =~ m{\A [a-z]+, \s+ (\d+) \s+ ([a-z]+) \s+ (\d+) \s}xms
@@ -364,19 +340,6 @@ else {
 if ($Env_Load eq 'MAX') {
     append_file($logname, '-' x 40, "\n");
 }
-
-say '';
-say '------------------------------------';
-
-my $nr = 0;
-
-for my $he (sort keys %AList) { $nr++;
-    my $ch = decode_entities($he);
-
-    printf "%2d. %-10s => %5d %-8s %s\n", $nr, $he, ord($ch), "'$ch'", "'".asciify($ch, [ 'iso' ])."'";
-}
-
-say '';
 
 sub show_sec {
     my $r2 = $_[0] % 6000;
