@@ -189,11 +189,15 @@ for my $i (0..$#GList) {
     local $_ = $GList[$i];
 
     $t_size += $_->[3];
-    my $leaf = $_->[2] =~ m{[\\/] ([^\\/]+) \z}xms ? $1 : '?';
 
     printf '%3d. (of %3d) ', $i + 1, scalar(@GList);
 
-    my $p1 = sprintf '%-11.11s-> %-15.15s %10s Kb', $_->[0], $_->[1], commify(sprintf('%.0f', $_->[3] / 1024));
+    my $lk  = $_->[2] =~ s{\? .* \z}''xmsr =~ s{\A .* [\\/]}''xmsr;
+
+    my $line = sprintf('%-25s', length($lk) > 25 ? substr($lk, 0, 7).'...'.substr($lk, -15) : $lk);
+
+    my $p0 = sprintf '%-11.11s-> %-13.13s = %s   %10s Kb', $_->[0], $_->[1], $line, commify(sprintf('%.0f', $_->[3] / 1024));
+    my $p1 = sprintf '%-11.11s-> %-13.13s   %10s Kb',      $_->[0], $_->[1],        commify(sprintf('%.0f', $_->[3] / 1024));
     print $p1;
 
     if ($Env_Load eq 'MAX') {
@@ -251,10 +255,10 @@ for my $i (0..$#GList) {
         my $p2 = sprintf ' %8s (%10s Kb/sec)%s', show_sec($elaps), commify(sprintf('%0.f', $_->[3] / 10.24 / $elaps)), $emsg;
         print $p2;
 
-        append_file($logname, sprintf('%-19.19s %s%s', dtime($watch_stop), $p1, $p2), "\n");
+        append_file($logname, sprintf('%-19.19s %s%s', dtime($watch_stop), $p0, $p2), "\n");
 
         if ($emsg eq '') {
-            append_file($dscname, sprintf('%-19.19s %s%s', dtime($watch_stop), $p1, $p2), "\n", '=' x 93, "\n");
+            append_file($dscname, sprintf('%-19.19s %s%s', dtime($watch_stop), $p1, $p2), "\n", '=' x 94, "\n", '  > Filename: ', $lk, "\n");
 
             my $tot = ${$_->[4]}.' '.${$_->[5]};
 
