@@ -98,8 +98,8 @@ for (@{$aref->[1]}) { $num++;
     }
 
     for my $item (@{$xref->[1]}) {
-        my $title = asciify(decode_entities($item->[0]), [ 'iso' ]);
-        my $desc  = asciify(decode_entities($item->[1]), [ 'iso' ]);
+        my $title = asciify(decode_entities($item->[0] // ''), [ 'iso' ]);
+        my $desc  = asciify(decode_entities($item->[1] // ''), [ 'iso' ]);
         my $link  = $item->[2];
         my $date  = lc($item->[3]);
 
