@@ -2,7 +2,7 @@ use 5.020;
 use warnings;
 
 use HTML::Entities;
-use Text::Fy::Utils qw(commify asciify);
+use Text::Fy::Utils qw(commify isoify);
 use XML::Reader::RS qw(slurp_xml);
 use File::Slurp;
 use File::Copy;
@@ -98,8 +98,8 @@ for (@{$aref->[1]}) { $num++;
     }
 
     for my $item (@{$xref->[1]}) {
-        my $title = asciify(decode_entities($item->[0] // ''), [ 'iso' ]);
-        my $desc  = asciify(decode_entities($item->[1] // ''), [ 'iso' ]);
+        my $title = isoify(decode_entities($item->[0] // ''));
+        my $desc  = isoify(decode_entities($item->[1] // ''));
         my $link  = $item->[2];
         my $date  = lc($item->[3]);
 
