@@ -106,6 +106,8 @@ for (@{$aref->[1]}) { $num++;
         next unless defined($link) and $link =~ m{\.mp3 (?: \? |\z)}xms;
 
         unless ($short eq 'sk') {
+            $desc  =~ s{<style> [^<]* </style>}' 'xmsg; # For SETI...
+            $desc  =~ s{(<\w: [^>]* >) [^<]*}"$1 "xmsg; # For SETI...
             $desc  =~ s{< [^>]* >}' 'xmsg;
             $title =~ s{< [^>]* >}' 'xmsg;
         }
