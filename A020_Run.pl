@@ -145,6 +145,13 @@ for (@{$aref->[1]}) { $num++;
             sprintf '%02d%02d%02d', $yyyy % 100, $mm, $dd;
         };
 
+        if ($short eq 'sk' and $rdate eq '141119') {
+            $link =~ m{/skepticast (\d{4}) - (\d{2}) - (\d{2}) \.mp3 \z}xms
+              or die "Error-0052: Can't parse /skepticast-0000-00-00.mp3/ from '$link'";
+
+            $rdate = sprintf '%02d%02d%02d', $1 % 100, $2, $3;
+        }
+
         my $fname = $short.'-'.$rdate.'.mp3';
 
         push @HList, [ $fname, $link, \$title, \$desc ];
