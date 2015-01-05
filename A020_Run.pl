@@ -63,17 +63,27 @@ for (@{$aref->[1]}) { $num++;
     }
 
     my $Latest;
+    my $Marker;
     my %Exist;
     my @HList;
 
     for (read_dir($full)) { $_ = lc $_;
-        next unless m{\A ([a-z]{2})-\d{6}\.mp3 \z}xms;
-        next unless $1 eq $short;
+        next unless m{\A ([a-z]{2})-\d{6} \. (\w+) \z}xms;
+        my ($stream, $ftype) = ($1, lc($2));
 
-        $Exist{$_}++;
+        next unless $stream eq $short;
 
-        unless (defined($Latest) and $Latest ge $_) {
-            $Latest = $_;
+        if ($ftype eq 'mp3') {
+            $Exist{$_}++;
+
+            unless (defined($Latest) and $Latest ge $_) {
+                $Latest = $_;
+            }
+        }
+        elsif ($ftype eq 'txt') {
+            unless (defined($Marker) and $Marker ge $_) {
+                $Marker = $_;
+            }
         }
     }
 
@@ -164,12 +174,17 @@ for (@{$aref->[1]}) { $num++;
     for my $i (0..$#HList) { $sk1->up;
         local $_ = $HList[$i];
 
-        if (defined $Latest) {
+        if (defined $Marker) {
+            next unless $_->[0] gt $Marker;
+        }
+        elsif (defined $Latest) {
             next unless $_->[0] gt $Latest;
         }
         else {
             next unless $i == $#HList;
         }
+
+        next if $Exist{$_->[0]};
 
         $sctr++;
 
