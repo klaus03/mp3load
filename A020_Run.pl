@@ -87,8 +87,35 @@ for (@{$aref->[1]}) { $num++;
         }
     }
 
+    my $hdl = Acme::HTTP->new($url) or do {
+        $sk1->whisper(sprintf("%-11s-> %s\n", $id, 
+          'Error '.($@ =~ s{\s+}' 'xmsgr)));
+        next;
+    };
+
+    my $zmsg  = '';
+    my $zdata = '';
+
+    while (1) {
+        my $ct = $hdl->read_entity_body(my $buf, 4096); # returns number of bytes read, or undef if IO-Error
+        unless (defined $ct) {
+            $zmsg = " Error $@";
+            last;
+        }
+
+        last unless $ct;
+
+        $sk1->up($ct);
+        $zdata .= $buf;
+    }
+
+    unless ($zmsg eq '') {
+        $sk1->whisper(sprintf("%-11s-> %s\n", $id, $zmsg));
+        next;
+    }
+
     my $xref = eval {
-      slurp_xml($url,
+      slurp_xml(\$zdata,
       { root => '/rss/channel', branch => [
         '/title',
         '/description',
@@ -102,8 +129,7 @@ for (@{$aref->[1]}) { $num++;
       ] } )
     };
     if ($@) {
-        $sk1->whisper(sprintf("%-11s-> %s\n", $id, 
-          'Error '.($@ =~ s{\A .* \s because \s+}''xmsr =~ s{\s+ at \s .* \z}''xmsr)));
+        $sk1->whisper(sprintf("%-11s-> %s\n", $id, ($@ =~ s{\s+}' 'xmsrg)));
         next;
     }
 
